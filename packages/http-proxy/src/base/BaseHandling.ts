@@ -1,6 +1,6 @@
-export type WebHandler = () => boolean | void;
+import { WebHandler } from './types.js';
 
-export abstract class BaseWebHandling {
+export abstract class BaseHandling {
   protected abstract handlers: readonly WebHandler[];
 
   handle() {

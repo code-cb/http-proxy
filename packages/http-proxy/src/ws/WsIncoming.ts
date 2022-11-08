@@ -1,36 +1,23 @@
-import { IncomingHttpHeaders, IncomingMessage } from 'node:http';
+import { IncomingMessage } from 'node:http';
 import { Socket } from 'node:net';
-import {
-  ErrorCallback,
-  ProxyInterface,
-  ResolvedProxyOptions,
-} from '../types.js';
-import { getWebAgent } from '../utils/getWebAgent.js';
+import { BaseHandling } from '../base/index.js';
 import {
   getPort,
+  getWebAgent,
   hasEncryptedConnection,
   isSslProtocol,
-} from '../utils/misc.js';
-import { setupRequestOptions } from '../utils/setupRequestOptions.js';
-import { xForwarded } from '../utils/xForwarded.js';
-import { BaseWebHandling } from './BaseWebHandling.js';
+  setupRequestOptions,
+  xForwarded,
+} from '../utils/index.js';
+import {
+  WsErrorCallback,
+  WsHandlingOptions,
+  WsProxyInterface,
+} from './types.js';
+import { createRawHeader, setupSocket } from './utils.js';
 
-const toKeyValueString = (headers: IncomingHttpHeaders) =>
-  Object.entries(headers).flatMap(([key, value]) =>
-    !Array.isArray(value) ? `${key}: ${value}` : value.map(v => `${key}: ${v}`),
-  );
-
-const createRawHeader = (line: string, headers: IncomingHttpHeaders) =>
-  `${[line, ...toKeyValueString(headers)].join('\r\n')}\r\n\r\n`;
-
-const setupSocket = (socket: Socket) => {
-  socket.setTimeout(0);
-  socket.setNoDelay(true);
-  socket.setKeepAlive(true, 0);
-};
-
-export class WsIncoming extends BaseWebHandling {
-  protected readonly handlers = [
+export class WsIncoming extends BaseHandling {
+  protected override readonly handlers = [
     this.handleWsChecking,
     this.handleXHeaders,
     this.handleStream,
@@ -39,23 +26,22 @@ export class WsIncoming extends BaseWebHandling {
   constructor(
     private readonly req: IncomingMessage,
     private readonly socket: Socket,
-    private readonly options: ResolvedProxyOptions,
+    private readonly options: WsHandlingOptions,
     private readonly head: Buffer,
-    private readonly server: ProxyInterface,
-    private readonly onError: ErrorCallback | undefined,
+    private readonly proxy: WsProxyInterface,
+    private readonly onError?: WsErrorCallback,
   ) {
     super();
   }
 
   private handleStream(): boolean | void {
     const { ssl, target } = this.options;
-
-    if (!target) return true;
-
     setupSocket(this.socket);
+
     if (this.head.length) this.socket.unshift(this.head);
 
-    const proxyReq = getWebAgent(false, isSslProtocol(target.protocol!))
+    const agent = getWebAgent(false, isSslProtocol(target.protocol));
+    const proxyReq = agent
       .request(setupRequestOptions(ssl ?? {}, this.options, this.req, target))
       .on('error', err => this.onOutGoingError(err))
       .on('response', res => {
@@ -72,25 +58,29 @@ export class WsIncoming extends BaseWebHandling {
         }
       })
       .on('upgrade', (proxyRes, proxySocket, proxyHead) => {
+        this.socket
+          .on('end', () => proxySocket.end())
+          .write(
+            createRawHeader(
+              `HTTP/1.1 101 Switching Protocols`,
+              proxyRes.headers,
+            ),
+          );
         setupSocket(proxySocket);
+        if (proxyHead.length) proxySocket.unshift(proxyHead);
         proxySocket
           .on('end', () =>
-            this.server.emit('close', proxyRes, proxySocket, proxyHead),
+            this.proxy.emit('close', proxyRes, proxySocket, proxyHead),
           )
-          .on('error', err => this.onOutGoingError(err));
-        this.socket.on('end', () => proxySocket.end());
-        if (proxyHead.length) proxySocket.unshift(proxyHead);
-        this.socket.write(
-          createRawHeader(`HTTP/1.1 101 Switching Protocols`, proxyRes.headers),
-        );
-        proxySocket.pipe(this.socket).pipe(proxySocket);
-        this.server.emit('open', proxySocket);
+          .on('error', err => this.onOutGoingError(err))
+          .pipe(this.socket)
+          .pipe(proxySocket);
+        this.proxy.emit('open', proxySocket);
       })
       .end();
 
-    // Enable developers to modify the proxyReq before headers are sent
-    this.server.emit(
-      'proxyReqWs',
+    this.proxy.emit(
+      'proxyReq',
       proxyReq,
       this.req,
       this.socket,
@@ -121,7 +111,7 @@ export class WsIncoming extends BaseWebHandling {
 
   private onOutGoingError(err: Error) {
     if (this.onError) this.onError(err, this.req, this.socket);
-    else this.server.emit('error', err, this.req, this.socket);
+    else this.proxy.emit('error', err, this.req, this.socket);
     this.socket.end();
   }
 }

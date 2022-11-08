@@ -2,13 +2,13 @@ import { IncomingMessage, OutgoingHttpHeaders } from 'node:http';
 import { RequestOptions, ServerOptions } from 'node:https';
 import { parse, URL } from 'node:url';
 import portRequired from 'requires-port';
-import { ResolvedProxyOptions } from '../types.js';
+import { ProxyRequestOptions } from '../base/index.js';
 import { getDefaultPort, isSslProtocol } from './misc.js';
 
 const hasPort = (host: string) => host.indexOf(':') >= 0;
 
 const setupHeaders = (
-  options: ResolvedProxyOptions,
+  options: ProxyRequestOptions,
   req: IncomingMessage,
   { host, port, protocol }: { host: string; port: string; protocol: string },
 ) => {
@@ -35,7 +35,7 @@ const setupHeaders = (
 };
 
 const setupPath = (
-  options: ResolvedProxyOptions,
+  options: ProxyRequestOptions,
   req: IncomingMessage,
   target: URL,
 ) => {
@@ -50,7 +50,7 @@ const setupPath = (
 
 export const setupRequestOptions = (
   base: Partial<ServerOptions>,
-  options: ResolvedProxyOptions,
+  options: ProxyRequestOptions,
   req: IncomingMessage,
   target: URL,
 ): RequestOptions => {

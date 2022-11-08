@@ -2,20 +2,24 @@ import { includes } from '@codecb/ts-utils/list';
 import { hasProperty } from '@codecb/ts-utils/object';
 import { ClientRequest, IncomingMessage, ServerResponse } from 'node:http';
 import { URL } from 'node:url';
-import {
-  ErrorCallback,
-  ProxyInterface,
-  ResolvedProxyOptions,
-} from '../types.js';
+import { BaseHandling } from '../base/index.js';
 import { getWebAgent } from '../utils/getWebAgent.js';
-import { getPort, hasEncryptedConnection } from '../utils/misc.js';
-import { setupRequestOptions } from '../utils/setupRequestOptions.js';
-import { xForwarded } from '../utils/xForwarded.js';
-import { BaseWebHandling } from './BaseWebHandling.js';
+import {
+  getPort,
+  hasEncryptedConnection,
+  isSslProtocol,
+  setupRequestOptions,
+  xForwarded,
+} from '../utils/index.js';
+import {
+  WebErrorCallback,
+  WebHandlingOptions,
+  WebProxyInterface,
+} from './types.js';
 import { WebOutgoing } from './WebOutgoing.js';
 
-export class WebIncoming extends BaseWebHandling {
-  protected readonly handlers = [
+export class WebIncoming extends BaseHandling {
+  protected override readonly handlers = [
     this.handleContentLength,
     this.handleTimeout,
     this.handleXHeaders,
@@ -25,26 +29,27 @@ export class WebIncoming extends BaseWebHandling {
   constructor(
     private readonly req: IncomingMessage,
     private readonly res: ServerResponse,
-    private readonly options: ResolvedProxyOptions,
-    private readonly server: ProxyInterface,
-    private readonly onError?: ErrorCallback,
+    private readonly options: WebHandlingOptions,
+    private readonly proxy: WebProxyInterface,
+    private readonly onError?: WebErrorCallback,
   ) {
     super();
   }
 
-  private createErrorHandler(proxyReq: ClientRequest, url: URL) {
+  private createErrorHandler(clientRequest: ClientRequest, targetUrl: URL) {
     return (err: Error) => {
       if (
         this.req.socket.destroyed &&
         hasProperty(err, 'code') &&
         err.code === 'ECONNRESET'
       ) {
-        this.server.emit('econnreset', err, this.req, this.res, url);
-        proxyReq.destroy();
+        this.proxy.emit('econnreset', err, this.req, this.res, targetUrl);
+        clientRequest.destroy();
         return;
       }
-      if (this.onError) this.onError(err, this.req, this.res, url);
-      else this.server.emit('error', err, this.req, this.res, url);
+
+      if (this.onError) this.onError(err, this.req, this.res, targetUrl);
+      else this.proxy.emit('error', err, this.req, this.res, targetUrl);
     };
   }
 
@@ -59,8 +64,8 @@ export class WebIncoming extends BaseWebHandling {
   }
 
   private handleStream(): boolean | void {
-    const { target, forward } = this.options;
-    this.server.emit('start', this.req, this.res, target ?? forward!);
+    const { forward, target } = this.options;
+    this.proxy.emit('start', this.req, this.res, (target ?? forward)!);
     if (forward) this.handleStreamForward(forward);
     if (target) this.handleStreamProxy(target);
     else {
@@ -71,38 +76,38 @@ export class WebIncoming extends BaseWebHandling {
 
   private handleStreamForward(forwardUrl: URL) {
     const { buffer, followRedirects, ssl } = this.options;
-
-    const forwardReq = getWebAgent(
+    const agent = getWebAgent(
       followRedirects,
-      forwardUrl.protocol === 'https:',
-    ).request(
-      setupRequestOptions(ssl || {}, this.options, this.req, forwardUrl),
+      isSslProtocol(forwardUrl.protocol),
     );
-
-    const forwardErrorHandler = this.createErrorHandler(forwardReq, forwardUrl);
-    this.req.on('error', forwardErrorHandler);
-    forwardReq.on('error', forwardErrorHandler);
+    const forwardReq = agent.request(
+      setupRequestOptions(ssl ?? {}, this.options, this.req, forwardUrl),
+    );
+    const handleError = this.createErrorHandler(forwardReq, forwardUrl);
+    this.req.on('error', handleError);
+    forwardReq.on('error', handleError);
     (buffer ?? this.req).pipe(forwardReq);
   }
 
   private handleStreamProxy(proxyUrl: URL) {
     const { buffer, followRedirects, proxyTimeout, selfHandleResponse, ssl } =
       this.options;
-
-    const proxyReq = getWebAgent(
+    const agent = getWebAgent(
       followRedirects,
-      proxyUrl.protocol === 'https',
-    ).request(setupRequestOptions(ssl || {}, this.options, this.req, proxyUrl));
+      isSslProtocol(proxyUrl.protocol),
+    );
+    const proxyReq = agent.request(
+      setupRequestOptions(ssl ?? {}, this.options, this.req, proxyUrl),
+    );
+    const handleError = this.createErrorHandler(proxyReq, proxyUrl);
 
     if (proxyTimeout)
       proxyReq.setTimeout(proxyTimeout, () => proxyReq.destroy());
 
-    const handleProxyError = this.createErrorHandler(proxyReq, proxyUrl);
-
     proxyReq
-      .on('error', handleProxyError)
+      .on('error', handleError)
       .on('response', proxyRes => {
-        this.server.emit('proxyRes', proxyRes, this.req, this.res);
+        this.proxy.emit('proxyRes', proxyRes, this.req, this.res);
 
         if (!this.res.headersSent && !selfHandleResponse)
           new WebOutgoing(
@@ -113,19 +118,19 @@ export class WebIncoming extends BaseWebHandling {
             this.options,
           ).handle();
 
-        if (!this.res.writableEnded) {
-          proxyRes.on('end', () =>
-            this.server.emit('end', this.req, this.res, proxyRes),
-          );
-          if (!selfHandleResponse) proxyRes.pipe(this.res);
-        } else {
-          this.server.emit('end', this.req, this.res, proxyRes);
+        if (this.res.writableEnded) {
+          this.proxy.emit('end', this.req, this.res, proxyRes);
+          return;
         }
+
+        proxyRes.on('end', () =>
+          this.proxy.emit('end', this.req, this.res, proxyRes),
+        );
+        if (!selfHandleResponse) proxyRes.pipe(this.res);
       })
       .on('socket', () => {
-        // Enable developers to modify the proxyReq before headers are sent
         if (!proxyReq.getHeader('expect'))
-          this.server.emit(
+          this.proxy.emit(
             'proxyReq',
             proxyReq,
             this.req,
@@ -134,9 +139,7 @@ export class WebIncoming extends BaseWebHandling {
           );
       });
 
-    this.req
-      .on('close', () => proxyReq.destroy())
-      .on('error', handleProxyError);
+    this.req.on('close', () => proxyReq.destroy()).on('error', handleError);
 
     (buffer ?? this.req).pipe(proxyReq);
   }
@@ -151,7 +154,6 @@ export class WebIncoming extends BaseWebHandling {
     if (!xForward) return;
     const { appendWith, overrideWith, setHeader } = xForwarded;
     const encrypted =
-      // TODO: where is `isSpdy` from?
       (hasProperty(this.req, 'isSpdy') && !!this.req.isSpdy) ||
       hasEncryptedConnection(this.req);
     setHeader(this.req, 'for', appendWith(this.req.socket.remoteAddress));

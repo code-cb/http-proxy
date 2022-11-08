@@ -1,62 +1,11 @@
-import { Dict } from '@codecb/ts-utils/object';
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { URL } from 'node:url';
-import { ResolvedProxyOptions } from '../types.js';
-import { BaseWebHandling } from './BaseWebHandling.js';
+import { BaseHandling } from '../base/index.js';
+import { WebHandlingOptions } from './types.js';
+import { getRawHeaderKeyMap, rewriteCookieProperty } from './utils.js';
 
-const getRawHeaderKeyMap = (rawHeaders: string[]): Dict => {
-  const rawHeaderKeyMap: Dict = {};
-  for (let i = 0; i < rawHeaders.length; i += 2) {
-    const key = rawHeaders[i]!;
-    rawHeaderKeyMap[key.toLowerCase()] = key;
-  }
-  return rawHeaderKeyMap;
-};
-
-type CookieOverrideValue =
-  | { shouldOverride: false; newValue?: never }
-  | { shouldOverride: true; newValue: string | undefined | null };
-
-const getCookieOverrideValue = (
-  cookieOverride: Dict<string | undefined | null> | string,
-  prevValue: string,
-): CookieOverrideValue => {
-  if (typeof cookieOverride === 'string')
-    return { shouldOverride: true, newValue: cookieOverride };
-  if (prevValue in cookieOverride)
-    return { shouldOverride: true, newValue: cookieOverride[prevValue] };
-  return { shouldOverride: false };
-};
-
-const rewriteCookiePropertyImpl = (
-  header: string,
-  cookieRewrite: Dict<string | undefined | null> | string,
-  propertyName: string,
-) =>
-  header.replace(
-    new RegExp(`(;\\s*${propertyName}=)([^;]+)`, 'i'),
-    (match: string, prefix: string, prevValue: string) => {
-      const { newValue, shouldOverride } = getCookieOverrideValue(
-        cookieRewrite,
-        prevValue,
-      );
-      return shouldOverride ? (newValue ? `${prefix}${newValue}` : '') : match;
-    },
-  );
-
-const rewriteCookieProperty = (
-  header: string | string[],
-  cookieRewrite: Dict<string | undefined | null> | string,
-  propertyName: string,
-) =>
-  Array.isArray(header)
-    ? header.map(header =>
-        rewriteCookiePropertyImpl(header, cookieRewrite, propertyName),
-      )
-    : rewriteCookiePropertyImpl(header, cookieRewrite, propertyName);
-
-export class WebOutgoing extends BaseWebHandling {
-  protected readonly handlers = [
+export class WebOutgoing extends BaseHandling {
+  protected override readonly handlers = [
     this.handleChunkHeaders,
     this.handleConnectionHeaders,
     this.handleRedirectHostRewrite,
@@ -69,20 +18,22 @@ export class WebOutgoing extends BaseWebHandling {
     private readonly res: ServerResponse,
     private readonly proxyUrl: URL,
     private readonly proxyRes: IncomingMessage,
-    private readonly options: ResolvedProxyOptions,
+    private readonly options: WebHandlingOptions,
   ) {
     super();
   }
 
   private handleChunkHeaders(): boolean | void {
-    if (this.req.httpVersion === '1.0')
+    const { httpVersion } = this.req;
+    if (httpVersion === '1.0')
       delete this.proxyRes.headers['transfer-encoding'];
   }
 
   private handleConnectionHeaders(): boolean | void {
-    if (this.req.httpVersion === '1.0')
+    const { httpVersion } = this.req;
+    if (httpVersion === '1.0')
       this.proxyRes.headers.connection = this.req.headers.connection || 'close';
-    else if (this.req.httpVersion !== '2.0')
+    else if (httpVersion !== '2.0')
       this.proxyRes.headers.connection ||=
         this.req.headers.connection || 'keep-alive';
   }
