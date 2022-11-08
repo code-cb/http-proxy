@@ -61,7 +61,13 @@ export class WsIncoming extends BaseWebHandling {
       .on('response', res => {
         // TODO: where is `upgrade` from???
         if (!(res as any).upgrade) {
-          this.socket.write(createRawHeader(``, res.headers));
+          const { headers, httpVersion, statusCode, statusMessage } = res;
+          this.socket.write(
+            createRawHeader(
+              `HTTP/${httpVersion} ${statusCode} ${statusMessage}`,
+              headers,
+            ),
+          );
           res.pipe(this.socket);
         }
       })
@@ -74,7 +80,9 @@ export class WsIncoming extends BaseWebHandling {
           .on('error', err => this.onOutGoingError(err));
         this.socket.on('end', () => proxySocket.end());
         if (proxyHead.length) proxySocket.unshift(proxyHead);
-        this.socket.write(createRawHeader(``, proxyRes.headers));
+        this.socket.write(
+          createRawHeader(`HTTP/1.1 101 Switching Protocols`, proxyRes.headers),
+        );
         proxySocket.pipe(this.socket).pipe(proxySocket);
         this.server.emit('open', proxySocket);
       })

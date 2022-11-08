@@ -7,7 +7,7 @@ import {
 } from 'node:https';
 import { Socket } from 'node:net';
 import { Stream } from 'node:stream';
-import { Url } from 'node:url';
+import { URL } from 'node:url';
 
 type CookieRewrite = false | string | Dict<string | undefined | null>;
 
@@ -21,7 +21,6 @@ export interface InputProxyOptions
   changeOrigin?: boolean | undefined;
   cookieDomainRewrite?: CookieRewrite | undefined;
   cookiePathRewrite?: CookieRewrite | undefined;
-  selfHandleResponse?: boolean | undefined;
   followRedirects?: boolean | undefined;
   forward?: string | undefined;
   hostRewrite?: string | undefined;
@@ -31,6 +30,7 @@ export interface InputProxyOptions
   protocolRewrite?: string | undefined;
   proxyTimeout?: number | undefined;
   secure?: boolean | undefined;
+  selfHandleResponse?: boolean | undefined;
   ssl?: HttpsServerOptions | undefined;
   target?: string | undefined;
   timeout?: number | undefined;
@@ -41,8 +41,8 @@ export interface InputProxyOptions
 
 export interface ResolvedProxyOptions
   extends OmitStrict<InputProxyOptions, 'forward' | 'target'> {
-  forward: Url | undefined;
-  target: Url | undefined;
+  forward: URL | undefined;
+  target: URL | undefined;
 }
 
 export type CloseCallback = (
@@ -55,7 +55,7 @@ export type EconnResetCallback = (
   err: Error,
   req: IncomingMessage,
   res: ServerResponse,
-  target: Url,
+  target: URL,
 ) => void;
 
 export type EndCallback = (
@@ -68,7 +68,7 @@ export type ErrorCallback = (
   err: Error,
   req: IncomingMessage,
   resOrSocket: ServerResponse | Socket,
-  target?: Url,
+  target?: URL,
 ) => void;
 
 export type OpenCallback = (proxySocket: Socket) => void;
@@ -97,7 +97,7 @@ export type ProxyResCallback = (
 export type StartCallback = (
   req: IncomingMessage,
   res: ServerResponse,
-  target: Url,
+  target: URL,
 ) => void;
 
 export interface ProxyEventTypes {

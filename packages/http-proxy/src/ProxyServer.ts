@@ -8,7 +8,7 @@ import {
 } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import { Socket } from 'node:net';
-import { parse } from 'node:url';
+import { URL } from 'node:url';
 import { WebIncoming } from './handlers/WebIncoming.js';
 import { WsIncoming } from './handlers/WsIncoming.js';
 import {
@@ -99,8 +99,8 @@ export class ProxyServer
       ...this.#options,
       ...additionalOptions,
     };
-    const parsedForward = forward ? parse(forward, false) : undefined;
-    const parsedTarget = target ? parse(target, false) : undefined;
+    const parsedForward = forward ? new URL(forward) : undefined;
+    const parsedTarget = target ? new URL(target) : undefined;
     if (!parsedTarget)
       this.emit(
         'error',

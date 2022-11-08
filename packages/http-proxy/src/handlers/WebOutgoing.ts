@@ -1,6 +1,6 @@
 import { Dict } from '@codecb/ts-utils/object';
 import { IncomingMessage, ServerResponse } from 'node:http';
-import { format, Url, URL } from 'node:url';
+import { URL } from 'node:url';
 import { ResolvedProxyOptions } from '../types.js';
 import { BaseWebHandling } from './BaseWebHandling.js';
 
@@ -67,7 +67,7 @@ export class WebOutgoing extends BaseWebHandling {
   constructor(
     private readonly req: IncomingMessage,
     private readonly res: ServerResponse,
-    private readonly proxyUrl: Url,
+    private readonly proxyUrl: URL,
     private readonly proxyRes: IncomingMessage,
     private readonly options: ResolvedProxyOptions,
   ) {
@@ -131,7 +131,7 @@ export class WebOutgoing extends BaseWebHandling {
     if (hostRewrite) locationUrl.host = hostRewrite;
     else if (autoRewrite) locationUrl.host = this.req.headers.host!;
     if (protocolRewrite) locationUrl.protocol = protocolRewrite;
-    this.proxyRes.headers.location = format(locationUrl);
+    this.proxyRes.headers.location = locationUrl.toString();
   }
 
   private handleStatusCode(): boolean | void {

@@ -1,7 +1,7 @@
 import { includes } from '@codecb/ts-utils/list';
 import { hasProperty } from '@codecb/ts-utils/object';
 import { ClientRequest, IncomingMessage, ServerResponse } from 'node:http';
-import { Url } from 'node:url';
+import { URL } from 'node:url';
 import {
   ErrorCallback,
   ProxyInterface,
@@ -32,7 +32,7 @@ export class WebIncoming extends BaseWebHandling {
     super();
   }
 
-  private createErrorHandler(proxyReq: ClientRequest, url: Url) {
+  private createErrorHandler(proxyReq: ClientRequest, url: URL) {
     return (err: Error) => {
       if (
         this.req.socket.destroyed &&
@@ -69,7 +69,7 @@ export class WebIncoming extends BaseWebHandling {
     }
   }
 
-  private handleStreamForward(forwardUrl: Url) {
+  private handleStreamForward(forwardUrl: URL) {
     const { buffer, followRedirects, ssl } = this.options;
 
     const forwardReq = getWebAgent(
@@ -85,7 +85,7 @@ export class WebIncoming extends BaseWebHandling {
     (buffer ?? this.req).pipe(forwardReq);
   }
 
-  private handleStreamProxy(proxyUrl: Url) {
+  private handleStreamProxy(proxyUrl: URL) {
     const { buffer, followRedirects, proxyTimeout, selfHandleResponse, ssl } =
       this.options;
 

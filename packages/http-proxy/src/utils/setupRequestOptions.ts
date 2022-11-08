@@ -1,6 +1,6 @@
 import { IncomingMessage, OutgoingHttpHeaders } from 'node:http';
 import { RequestOptions, ServerOptions } from 'node:https';
-import { parse, Url } from 'node:url';
+import { parse, URL } from 'node:url';
 import portRequired from 'requires-port';
 import { ResolvedProxyOptions } from '../types.js';
 import { getDefaultPort, isSslProtocol } from './misc.js';
@@ -37,9 +37,9 @@ const setupHeaders = (
 const setupPath = (
   options: ResolvedProxyOptions,
   req: IncomingMessage,
-  target: Url,
+  target: URL,
 ) => {
-  const targetPath = (options.prependPath !== false && target.path) || '';
+  const targetPath = (options.prependPath !== false && target.pathname) || '';
   const outgoingPath = options.ignorePath
     ? ''
     : options.toProxy
@@ -52,7 +52,7 @@ export const setupRequestOptions = (
   base: Partial<ServerOptions>,
   options: ResolvedProxyOptions,
   req: IncomingMessage,
-  target: Url,
+  target: URL,
 ): RequestOptions => {
   const protocol = target.protocol!;
   const isSsl = isSslProtocol(protocol);
