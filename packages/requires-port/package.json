@@ -1,5 +1,5 @@
 {
-  "name": "@codecb/http-proxy",
+  "name": "@codecb/requires-port",
   "version": "0.0.1",
   "license": "MIT",
   "type": "module",
@@ -8,7 +8,7 @@
     "name": "ICodeMyOwnLife"
   },
   "repository": {
-    "directory": "packages/http-proxy",
+    "directory": "packages/requires-port",
     "type": "git",
     "url": "https://github.com/code-cb/network"
   },
@@ -19,19 +19,11 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc -p ./tsconfig.json",
+    "build": "rm -rf dist && tsc -p ./tsconfig.build.json",
     "build:watch": "yarn build --declarationMap --sourceMap --watch",
     "format": "prettier --write 'src/**/*.ts'",
     "prepublishOnly": "yarn build",
+    "test": "jest",
     "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@codecb/event-emitter": "0.0.1",
-    "@codecb/requires-port": "0.0.1",
-    "@codecb/ts-utils": "0.6.1",
-    "follow-redirects": "^1.15.0"
-  },
-  "devDependencies": {
-    "@types/follow-redirects": "^1.14.0"
   }
 }

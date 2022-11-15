@@ -1,5 +1,5 @@
 {
-  "name": "@codecb/http-proxy",
+  "name": "@codecb/http-proxy-middleware",
   "version": "0.0.1",
   "license": "MIT",
   "type": "module",
@@ -8,7 +8,7 @@
     "name": "ICodeMyOwnLife"
   },
   "repository": {
-    "directory": "packages/http-proxy",
+    "directory": "packages/http-proxy-middleware",
     "type": "git",
     "url": "https://github.com/code-cb/network"
   },
@@ -26,12 +26,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@codecb/event-emitter": "0.0.1",
-    "@codecb/requires-port": "0.0.1",
-    "@codecb/ts-utils": "0.6.1",
-    "follow-redirects": "^1.15.0"
+    "@codecb/http-proxy": "0.0.1",
+    "@codecb/ts-utils": "0.6.1"
   },
   "devDependencies": {
-    "@types/follow-redirects": "^1.14.0"
+    "@types/express": "^4.17.0"
   }
 }

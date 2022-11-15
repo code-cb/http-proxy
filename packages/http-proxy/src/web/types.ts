@@ -1,5 +1,5 @@
+import { EventEmitter } from '@codecb/event-emitter';
 import { Dict, OmitStrict } from '@codecb/ts-utils/object';
-import EventEmitter from 'eventemitter3';
 import { ClientRequest, IncomingMessage, ServerResponse } from 'node:http';
 import { Stream } from 'node:stream';
 import { BaseProxyOptions } from '../base/index.js';
@@ -66,13 +66,13 @@ export type WebProxyReqCallback = (
   options: WebHandlingOptions,
 ) => void;
 
-export interface WebProxyEventTypes {
+export type WebProxyEventTypes = {
   econnreset: EconnResetCallback;
   end: EndCallback;
   error: WebErrorCallback;
   proxyReq: WebProxyReqCallback;
   proxyRes: ProxyResCallback;
   start: StartCallback;
-}
+};
 
 export interface WebProxyInterface extends EventEmitter<WebProxyEventTypes> {}

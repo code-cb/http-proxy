@@ -1,6 +1,9 @@
+import EventEmitter from '@codecb/event-emitter';
 import { RequestOptions, ServerOptions } from 'node:https';
 
 export type BaseErrorCallback = (err: Error, ...args: any) => void;
+
+export type BaseProxyEventEmitter = EventEmitter<{ error: BaseErrorCallback }>;
 
 export type WebHandler = () => boolean | void;
 

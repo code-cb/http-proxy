@@ -1,7 +1,7 @@
+import { requiresPort } from '@codecb/requires-port';
 import { IncomingMessage, OutgoingHttpHeaders } from 'node:http';
 import { RequestOptions, ServerOptions } from 'node:https';
 import { parse, URL } from 'node:url';
-import portRequired from 'requires-port';
 import { ProxyRequestOptions } from '../base/index.js';
 import { getDefaultPort, isSslProtocol } from './misc.js';
 
@@ -29,7 +29,7 @@ const setupHeaders = (
 
   if (options.changeOrigin)
     headers['host'] =
-      portRequired(port, protocol!) && !hasPort(host) ? `` : host;
+      requiresPort(port, protocol!) && !hasPort(host) ? `` : host;
 
   return headers;
 };

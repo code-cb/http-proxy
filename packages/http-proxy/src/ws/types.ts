@@ -1,5 +1,5 @@
+import { EventEmitter } from '@codecb/event-emitter';
 import { OmitStrict } from '@codecb/ts-utils/object';
-import EventEmitter from 'eventemitter3';
 import { ClientRequest, IncomingMessage } from 'node:http';
 import { Socket } from 'node:net';
 import { URL } from 'node:url';
@@ -35,11 +35,11 @@ export type WsProxyReqCallback = (
   head: Buffer,
 ) => void;
 
-export interface WsProxyEventTypes {
+export type WsProxyEventTypes = {
   close: CloseCallback;
   error: WsErrorCallback;
   open: OpenCallback;
   proxyReq: WsProxyReqCallback;
-}
+};
 
 export interface WsProxyInterface extends EventEmitter<WsProxyEventTypes> {}
