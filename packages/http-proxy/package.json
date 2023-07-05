@@ -28,7 +28,7 @@
   "dependencies": {
     "@codecb/event-emitter": "0.0.1",
     "@codecb/requires-port": "0.0.1",
-    "@codecb/ts-utils": "0.6.1",
+    "@codecb/ts-utils": "0.6.5",
     "follow-redirects": "^1.15.0"
   },
   "devDependencies": {
